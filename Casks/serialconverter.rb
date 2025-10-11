@@ -1,11 +1,11 @@
 cask "serialconverter" do
   version "0.2.12"
-  sha256 arm:   "0000000000000000000000000000000000000000000000000000000000000000",
-         intel: "0000000000000000000000000000000000000000000000000000000000000000"
+  sha256 arm:   "7982dbe6b0981995eb38a2ebd0bd675e43de943c614bd29afdc5fc7c734673b3",
+         intel: "d2c054f6f1af0747c1f8786942dabede7c2422d303200c36ba613e32ceec7c24"
 
   url "https://github.com/seishio/homebrew-serialconverter/releases/download/v#{version}/SerialConverter-#{version}-macos-#{Hardware::CPU.arm? ? "arm64" : "intel"}.dmg"
-  name "Serial Converter"
-  desc "Serial Converter extracts serial numbers from PDF files and converts certificate serial numbers."
+  name "SerialConverter"
+  desc "Serial Converter is a powerful tool that extracts serial numbers from PDF files and converts certificate serial numbers."
   homepage "https://github.com/seishio/SerialConverter"
   
   depends_on macos: ">= :catalina"
