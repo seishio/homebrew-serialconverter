@@ -1,7 +1,7 @@
 cask "serialconverter" do
   version "0.2.12"
-  sha256 arm:   "8b927977e35c5a35b083cf8b814ddff29084f8ba4f2d62cab4c14bfdc31bd275",
-         intel: "36b651a4846b5fef4ef1a29ef9c326af1028afd5d2fce7c5f396bfc969c17dab"
+  sha256 arm:   "b7072a3ad17f87138c43688e1f6728832ff0370ce88f310e86e9de81888a5a8c",
+         intel: "d5b4561be991cc1aff2d3fd1939b0d3a228993aa822b859215b4041385bde9fa"
 
   url "https://github.com/seishio/homebrew-serialconverter/releases/download/v#{version}/SerialConverter-#{version}-macos-#{Hardware::CPU.arm? ? "arm64" : "intel"}.dmg"
   name "SerialConverter"
