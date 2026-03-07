@@ -1,20 +1,20 @@
 #!/bin/bash
+#
+# install.sh — Serial Converter installer for Linux (DEB/RPM)
+# Usage: curl -fsSL https://raw.githubusercontent.com/seishio/homebrew-serialconverter/main/install.sh | bash [-s VERSION]
+#
 
 # Enable strict error handling
 set -euo pipefail
 
-# Script version
-SCRIPT_VERSION="0.0.1"
-
 # Colors with fallback for terminals without color support
 if [[ -t 1 ]] && command -v tput >/dev/null 2>&1 && tput colors >/dev/null 2>&1 && [[ $(tput colors) -ge 8 ]]; then
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    BLUE='\033[0;34m'
+    YELLOW='\033[1;33m'
+    NC='\033[0m'
 else
-    # Fallback for terminals without color support
     RED=''
     GREEN=''
     BLUE=''
@@ -23,28 +23,31 @@ else
 fi
 
 # Simple logging
-log() { echo -e "${BLUE}==>${NC} $1"; }
+log()     { echo -e "${BLUE}==>${NC} $1"; }
 success() { echo -e "${GREEN}✅${NC} $1"; }
 warning() { echo -e "${YELLOW}⚠️${NC} $1"; }
-error() { echo -e "${RED}❌${NC} $1" >&2; }
+error()   { echo -e "${RED}❌${NC} $1" >&2; }
 
 # Get latest version from GitHub API
 get_latest_version() {
     local api_url="https://api.github.com/repos/seishio/homebrew-serialconverter/releases/latest"
     local response
-    local fallback_version="0.2.12"
-    
+
     if ! response=$(timeout 10s curl -s "$api_url" 2>/dev/null); then
-        echo "$fallback_version"
-        return 0
+        error "Could not reach GitHub API"
+        error "Specify version manually: curl ... | bash -s 1.2.3"
+        exit 1
     fi
-    
-    local version=$(echo "$response" | grep -Po '"tag_name": "v\K[^"]*' 2>/dev/null || echo "")
+
+    local version
+    version=$(echo "$response" | grep -Po '"tag_name": "v\K[^"]*' 2>/dev/null || echo "")
     if [[ -z "$version" ]]; then
-        echo "$fallback_version"
-    else
-        echo "$version"
+        error "Could not determine latest version from GitHub API"
+        error "Specify version manually: curl ... | bash -s 1.2.3"
+        exit 1
     fi
+
+    echo "$version"
 }
 
 # Determine version
@@ -62,7 +65,7 @@ check_tools() {
             missing_tools+=("$tool")
         fi
     done
-    
+
     if [[ ${#missing_tools[@]} -gt 0 ]]; then
         error "Missing required tools: ${missing_tools[*]}"
         exit 1
@@ -73,17 +76,14 @@ check_tools() {
 check_sudo() {
     if ! sudo -n true 2>/dev/null; then
         log "sudo access required for package installation"
-        # Check if running in non-interactive mode
         if [[ -t 0 ]]; then
-            # Interactive mode - can ask for password
             if ! sudo -v; then
                 error "sudo access denied"
                 exit 1
             fi
         else
-            # Non-interactive mode - cannot ask for password
             error "sudo access required but running in non-interactive mode"
-            error "Please run with sudo or ensure passwordless sudo is configured"
+            error "Please run with: curl -fsSL ... | sudo bash"
             exit 1
         fi
     fi
@@ -97,24 +97,20 @@ check_network() {
     fi
 }
 
-# Show download progress
-show_progress() {
+# Download file with progress
+download_file() {
     local file="$1"
     local url="$2"
-    
-    # Check if file already exists and is not empty
+
     if [[ -f "$file" ]] && [[ -s "$file" ]]; then
         log "File $file already exists, skipping download"
         return 0
     fi
-    
-    echo "Downloading $file..."
-    
-    # Завантаження з прогресом
+
+    log "Downloading $file..."
     if curl --progress-bar -L -o "$file" "$url"; then
-        # Перевірити чи файл створився і не порожній
         if [[ -f "$file" ]] && [[ -s "$file" ]]; then
-            success "Download completed successfully"
+            success "Download completed"
         else
             error "Downloaded file is empty or corrupted"
             exit 1
@@ -125,265 +121,142 @@ show_progress() {
     fi
 }
 
+# Verify checksum if .sha256 file is available
+verify_checksum() {
+    local file="$1"
+    local url="$2"
+
+    local sha256_file="${file}.sha256"
+    log "Downloading checksum..."
+    if ! curl -sf -L -o "$sha256_file" "${url}.sha256" 2>/dev/null; then
+        warning "Checksum file not available, skipping verification"
+        return 0
+    fi
+
+    if command -v sha256sum >/dev/null 2>&1; then
+        if sha256sum -c "$sha256_file" >/dev/null 2>&1; then
+            success "Checksum verified"
+        else
+            error "Checksum mismatch for $file"
+            exit 1
+        fi
+    else
+        warning "sha256sum not available, skipping verification"
+    fi
+}
+
 # Detect system type
 detect_system() {
-    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        if command -v apt-get >/dev/null 2>&1; then
-            echo "debian"
-        elif command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; then
-            echo "rpm"
-        elif command -v pacman >/dev/null 2>&1; then
-            echo "arch"
-        elif command -v apk >/dev/null 2>&1; then
-            echo "alpine"
-        elif command -v zypper >/dev/null 2>&1; then
-            echo "suse"
-        else
-            # Fallback: try to detect by distribution files
-            if [[ -f /etc/os-release ]]; then
-                local distro=$(grep "^ID=" /etc/os-release | cut -d= -f2 | tr -d '"')
-                case "$distro" in
-                    "opensuse"|"opensuse-tumbleweed"|"opensuse-leap")
-                        echo "suse"
-                        ;;
-                    "ubuntu"|"debian"|"linuxmint")
-                        echo "debian"
-                        ;;
-                    "fedora"|"rhel"|"centos")
-                        echo "rpm"
-                        ;;
-                    "arch"|"manjaro")
-                        echo "arch"
-                        ;;
-                    "alpine")
-                        echo "alpine"
-                        ;;
-                    *)
-                        echo "generic"
-                        ;;
-                esac
-        else
-            echo "generic"
-            fi
-        fi
-    else
+    if [[ "$OSTYPE" != "linux-gnu"* ]]; then
         error "Unsupported operating system: $OSTYPE"
+        error "For macOS, use: brew install --cask serialconverter"
+        error "For Windows, download from: https://github.com/seishio/homebrew-serialconverter/releases"
         exit 1
     fi
-}
 
-# Create desktop file with icon extraction
-create_desktop_file() {
-    local apps_dir="$HOME/.local/share/applications"
-    local exec_path="$1"
-    local icon_path="serialconverter"
-    
-    mkdir -p "$apps_dir"
-    
-    # Try to extract icon from AppImage (if it's AppImage)
-    # Check if it's an AppImage by testing --appimage-extract
-    if [[ -x "$exec_path" ]] && "$exec_path" --appimage-extract --help >/dev/null 2>&1; then
-        local temp_dir=$(mktemp -d)
-        cd "$temp_dir"
-        if "$exec_path" --appimage-extract >/dev/null 2>&1; then
-            # Look for icons
-            for icon in squashfs-root/*.png squashfs-root/*.ico squashfs-root/*.svg; do
-                if [[ -f "$icon" ]]; then
-                    local icon_name=$(basename "$icon")
-                    mkdir -p "$HOME/.local/share/icons"
-                    cp "$icon" "$HOME/.local/share/icons/$icon_name"
-                    icon_path="$HOME/.local/share/icons/$icon_name"
-                    break
-                fi
-            done
-        fi
-        cd - >/dev/null
-        rm -rf "$temp_dir"
-    fi
-    
-    cat > "$apps_dir/serialconverter.desktop" << EOF
-[Desktop Entry]
-Name=Serial Converter
-Comment=Extracts serial numbers from PDF files and converts certificate serial numbers
-Exec=$exec_path
-Icon=$icon_path
-Terminal=false
-Type=Application
-Categories=Utility;
-EOF
-    chmod +x "$apps_dir/serialconverter.desktop"
-        
-        # Update desktop database
-        if command -v update-desktop-database >/dev/null 2>&1; then
-            update-desktop-database "$apps_dir" 2>/dev/null || true
-        fi
-        
-        success "Desktop integration complete"
-}
-
-# Create desktop shortcut (simple)
-create_desktop_shortcut() {
-    local exec_path="$1"
-    
-    # Find desktop directory
-    local desktop_dir=""
-    if [[ -d "${HOME}/Desktop" ]]; then
-        desktop_dir="${HOME}/Desktop"
-    elif [[ -d "${HOME}/Рабочий стол" ]]; then
-        desktop_dir="${HOME}/Рабочий стол"
-    elif [[ -d "${HOME}/Escritorio" ]]; then
-        desktop_dir="${HOME}/Escritorio"
+    if command -v apt-get >/dev/null 2>&1; then
+        echo "debian"
+    elif command -v zypper >/dev/null 2>&1; then
+        echo "suse"
+    elif command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; then
+        echo "rpm"
+    elif [[ -f /etc/os-release ]]; then
+        local distro
+        distro=$(grep "^ID=" /etc/os-release | cut -d= -f2 | tr -d '"')
+        case "$distro" in
+            opensuse*) echo "suse" ;;
+            ubuntu|debian|linuxmint|pop) echo "debian" ;;
+            fedora|rhel|centos|almalinux|rocky) echo "rpm" ;;
+            *) echo "unsupported" ;;
+        esac
     else
-        # Create Desktop as fallback
-        desktop_dir="${HOME}/Desktop"
-        mkdir -p "$desktop_dir"
+        echo "unsupported"
     fi
-    
-    # Copy .desktop file to desktop
-    if [[ -f "$HOME/.local/share/applications/serialconverter.desktop" ]]; then
-        if cp "$HOME/.local/share/applications/serialconverter.desktop" "$desktop_dir/SerialConverter.desktop"; then
-            chmod +x "$desktop_dir/SerialConverter.desktop" 2>/dev/null || true
-            success "Desktop shortcut created: $desktop_dir"
-        else
-            warning "Failed to create desktop shortcut"
-        fi
-    fi
-}
-
-# Install AppImage
-install_appimage() {
-    local version="$1"
-    local file="SerialConverter-${version}-linux.AppImage"
-    
-    # Check architecture compatibility
-    if [[ "$ARCHITECTURE" != "x86_64" ]] && [[ "$ARCHITECTURE" != "amd64" ]]; then
-        warning "AppImage may not work on $ARCHITECTURE architecture"
-        warning "Consider using a different installation method"
-    fi
-    
-    # Check FUSE availability for AppImage
-    if ! command -v fusermount >/dev/null 2>&1 && ! command -v fusermount3 >/dev/null 2>&1; then
-        warning "FUSE may be required for AppImage to work properly"
-        warning "Install FUSE: sudo apt install fuse (Ubuntu/Debian) or equivalent for your system"
-    fi
-    
-    log "Downloading AppImage..."
-    show_progress "$file" "$BASE_URL/$file"
-    
-    chmod +x "$file"
-    
-    # Install to user directory
-    log "Installing AppImage..."
-    local install_dir="$HOME/.local/bin"
-    mkdir -p "$install_dir"
-    mv "$file" "$install_dir/serialconverter"
-    chmod +x "$install_dir/serialconverter"
-    
-    success "Serial Converter installed to $install_dir/serialconverter"
-    
-    # Create desktop file
-    create_desktop_file "$install_dir/serialconverter"
-    
-    # Create desktop shortcut (simple)
-    create_desktop_shortcut "$install_dir/serialconverter"
-    
-    # Check PATH
-    if [[ ":$PATH:" != *":$install_dir:"* ]]; then
-        log "Add to PATH: export PATH=\"\$HOME/.local/bin:\$PATH\""
-    fi
-    
-    success "Serial Converter installed successfully!"
-    log "Run: serialconverter"
 }
 
 # Install DEB package
 install_deb() {
     local version="$1"
     local file="SerialConverter-${version}-amd64.deb"
-    
-    log "Downloading DEB package..."
-    show_progress "$file" "$BASE_URL/$file"
-    
-    log "Installing package..."
+    local url="$BASE_URL/$file"
+
+    download_file "$file" "$url"
+    verify_checksum "$file" "$url"
+
+    log "Installing DEB package..."
     check_sudo
-    # Try apt install first, then dpkg as fallback
-    if ! sudo apt install -y "./$file" 2>/dev/null; then
-        log "Trying alternative installation method..."
-        if ! sudo dpkg -i "$file" 2>/dev/null; then
-            warning "Package installation had issues, but continuing..."
-        else
-            success "Package installed successfully"
-        fi
-    else
-        success "Package installed successfully"
+    if ! sudo apt-get install -y "./$file" 2>/dev/null; then
+        log "Trying dpkg fallback..."
+        sudo dpkg -i "$file" || true
+        sudo apt-get -f install -y
     fi
-    
-    # Create desktop file
-    create_desktop_file "serialconverter"
-    
-    # Create desktop shortcut (simple)
-    create_desktop_shortcut "serialconverter"
-    
+
     success "Serial Converter installed successfully!"
     log "Run: serialconverter"
 }
 
-# Main execution
+# Install RPM package
+install_rpm() {
+    local version="$1"
+    local file="SerialConverter-${version}-x86_64.rpm"
+    local url="$BASE_URL/$file"
+
+    download_file "$file" "$url"
+    verify_checksum "$file" "$url"
+
+    log "Installing RPM package..."
+    check_sudo
+    if command -v dnf >/dev/null 2>&1; then
+        sudo dnf install -y "./$file"
+    elif command -v yum >/dev/null 2>&1; then
+        sudo yum install -y "./$file"
+    elif command -v zypper >/dev/null 2>&1; then
+        sudo zypper --non-interactive install "./$file"
+    else
+        sudo rpm -i "$file"
+    fi
+
+    success "Serial Converter installed successfully!"
+    log "Run: serialconverter"
+}
+
+# Main
 check_network
 check_tools
-log "Install script v$SCRIPT_VERSION"
+
 log "Installing Serial Converter v$VERSION"
+
+# Check architecture
+ARCHITECTURE=$(uname -m)
+if [[ "$ARCHITECTURE" != "x86_64" ]] && [[ "$ARCHITECTURE" != "amd64" ]]; then
+    error "Unsupported architecture: $ARCHITECTURE"
+    error "Only x86_64 is supported. Download manually from:"
+    error "https://github.com/seishio/homebrew-serialconverter/releases"
+    exit 1
+fi
 
 # Create temp directory
 TEMP_DIR=$(mktemp -d)
-trap "rm -rf '$TEMP_DIR'" EXIT
+trap 'rm -rf "$TEMP_DIR"' EXIT
 cd "$TEMP_DIR"
 
 BASE_URL="https://github.com/seishio/homebrew-serialconverter/releases/download/v$VERSION"
-
 SYSTEM_TYPE=$(detect_system)
-ARCHITECTURE=$(uname -m)
 
-# Install based on system type
+log "Detected system: $SYSTEM_TYPE"
+
 case "$SYSTEM_TYPE" in
-    "debian")
-        # Use DEB for amd64, AppImage for others
-        if [[ "$ARCHITECTURE" == "x86_64" || "$ARCHITECTURE" == "amd64" ]]; then
-            install_deb "$VERSION"
-        else
-            install_appimage "$VERSION"
-        fi
+    debian)
+        install_deb "$VERSION"
         ;;
-    *)
-        # All other systems - use AppImage
-        install_appimage "$VERSION"
-    ;;
+    rpm|suse)
+        install_rpm "$VERSION"
+        ;;
+    unsupported)
+        error "Unsupported Linux distribution"
+        error "Download manually from: https://github.com/seishio/homebrew-serialconverter/releases"
+        exit 1
+        ;;
 esac
 
 success "Installation completed!"
-
-# Show dependency installation commands for manual setup
-echo ""
-log "Optional: Install system dependencies for optimal performance"
-echo ""
-case "$SYSTEM_TYPE" in
-    "debian")
-        echo "  sudo apt-get install -y libgtk-3-0 libnotify4 libegl1-mesa libxcb-xinerama0 libxcb-cursor0 libx11-6 libxext6 libxrender1 libgl1-mesa-dri"
-        ;;
-    "rpm")
-        echo "  sudo dnf install -y gtk3 libnotify mesa-libEGL libxcb libX11 libXext libXrender mesa-libGL fuse"
-        ;;
-    "arch")
-        echo "  sudo pacman -S --noconfirm gtk3 libnotify mesa libxcb libx11 libxext libxrender fuse2"
-        ;;
-    "alpine")
-        echo "  sudo apk add --no-cache gtk+3.0 libnotify mesa-egl libxcb libx11 libxext libxrender mesa-gl fuse"
-        ;;
-    "suse")
-        echo "  sudo zypper install -y gtk3 libnotify Mesa-libEGL libxcb libX11 libXext libXrender Mesa-libGL fuse"
-        ;;
-    *)
-        echo "  sudo apt-get install -y libfuse2 libegl1-mesa libxcb-xinerama0 libxcb-cursor0 libgtk-3-0 libnotify4 libx11-6 libxext6 libxrender1 libgl1-mesa-dri"
-        ;;
-esac
-echo ""

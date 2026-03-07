@@ -1,93 +1,98 @@
 # Serial Converter Homebrew Tap
 
-[![Version](https://img.shields.io/badge/Version-0.2.12-brightgreen.svg)](https://github.com/seishio/homebrew-serialconverter/releases)
+[![Version](https://img.shields.io/github/v/release/seishio/homebrew-serialconverter?label=version&color=brightgreen)](https://github.com/seishio/homebrew-serialconverter/releases)
 
-This tap provides the Serial Converter application via Homebrew Cask.
-
-## About Serial Converter
-
-Serial Converter is a powerful tool that extracts serial numbers from PDF files and converts certificate serial numbers.
+Homebrew Cask for Serial Converter — a tool that extracts serial numbers from PDF files and converts certificate serial numbers. Also provides a native Linux installer and Windows builds.
 
 ## Installation
 
 ### macOS
 ```bash
-# Install Homebrew (if not installed)
+# Install Homebrew if not installed
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# Install Serial Converter
 brew tap seishio/serialconverter
 brew install --cask serialconverter
 ```
 
-### Linux (DEB, AppImage)
+### Linux (DEB, RPM)
+**Requirements:** `curl`, `sudo`
 
-**Install:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/seishio/homebrew-serialconverter/main/install.sh | bash
 ```
 
-## Updating & Reinstalling
+The script automatically detects your distribution (Debian/Ubuntu, Fedora/RHEL/CentOS, openSUSE) and installs the appropriate package.
 
-### Update
+### Windows
+Download the latest `.exe` from the [Releases](https://github.com/seishio/homebrew-serialconverter/releases) page.
+
+---
+
+<details>
+<summary><b>Updating</b></summary>
+
+**macOS:**
 ```bash
-# macOS
 brew upgrade --cask serialconverter
+```
 
-# Linux (same as installation)
+**Linux:**
+```bash
 curl -fsSL https://raw.githubusercontent.com/seishio/homebrew-serialconverter/main/install.sh | bash
 ```
+</details>
 
-### Force Reinstall
+<details>
+<summary><b>Uninstalling</b></summary>
+
+**macOS:**
 ```bash
-# Force reinstall
-brew reinstall --cask serialconverter
-```
-
-### Reinstall
-```bash
-# Standard reinstall
-brew cleanup && brew uninstall --cask serialconverter
-brew untap seishio/serialconverter
-brew tap seishio/serialconverter
-brew install --cask serialconverter
-
-# Complete reinstall (with data cleanup)
-brew cleanup && brew uninstall --cask serialconverter
-rm -rf ~/Library/Application\ Support/SerialConverter ~/Library/Preferences/com.serialconverter.*
-brew untap seishio/serialconverter
-brew tap seishio/serialconverter
-brew install --cask serialconverter
-```
-
-### Complete Reset
-```bash
-# Nuclear option - reset everything
 brew uninstall --cask serialconverter
-rm -rf ~/Library/Application\ Support/SerialConverter ~/Library/Preferences/com.serialconverter.*
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/uninstall.sh)"
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew tap seishio/serialconverter
-brew install --cask serialconverter
 ```
 
-### Troubleshooting
-
-#### SHA-256 Mismatch Error
+**Debian/Ubuntu:**
 ```bash
-# Clean cache and reinstall tap
+sudo apt-get remove serialconverter
+```
+
+**Fedora/RHEL/CentOS:**
+```bash
+sudo dnf remove serialconverter
+```
+
+**openSUSE:**
+```bash
+sudo zypper remove serialconverter
+```
+</details>
+
+<details>
+<summary><b>Troubleshooting</b></summary>
+
+#### Complete Removal (macOS)
+If something went wrong, remove the app along with all its data:
+```bash
+brew uninstall --zap --cask serialconverter
+brew untap seishio/serialconverter
+```
+
+#### SHA-256 Mismatch Error (macOS)
+```bash
 brew cleanup --prune=all
 brew untap seishio/serialconverter
 brew tap seishio/serialconverter
 brew install --cask serialconverter
 ```
 
-## License
+#### Dependency Issues (Linux DEB)
+```bash
+sudo apt-get install -f
+```
 
-### Homebrew Tap
+#### Permission Denied (Linux)
+```bash
+curl -fsSL https://raw.githubusercontent.com/seishio/homebrew-serialconverter/main/install.sh | sudo bash
+```
+</details>
 
-This Homebrew tap is provided under the MIT License.
-
-### Serial Converter Application
-
-**Non-Commercial License** - This software is provided for personal use only. Commercial use, modification, and redistribution are strictly prohibited without explicit written permission.
