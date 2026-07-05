@@ -2,13 +2,13 @@ cask "serialconverter" do
   arch arm: "arm64", intel: "intel"
 
   version "0.2.18"
-  sha256 arm:   "df41eda5f3c25e3e5e218f5a0fff1742f01d2bd3c58fe1b6353541453f0813c5",
-         intel: "b5299dcbd43d358c76074decace01dacb7a1af7127c301ea6d3812577223b156"
+  sha256 arm:   "4e43d93481be97e520cc1a7315b48ba91e27fe8f6c11d7e0de59807756804d59",
+         intel: "22ee79f7c3606deceb147c1cb6b780e0a84c9dd9f70738387f63df8dcf926a77"
 
   url "https://github.com/seishio/homebrew-serialconverter/releases/download/v#{version}/SerialConverter-#{version}-macos-#{arch}.dmg"
   name "SerialConverter"
   desc "Extracts serial numbers from PDF files and converts certificate serial numbers"
-  homepage "https://github.com/seishio/SerialConverter"
+  homepage "https://github.com/seishio/homebrew-serialconverter"
 
   livecheck do
     url "https://github.com/seishio/homebrew-serialconverter/releases/latest"
