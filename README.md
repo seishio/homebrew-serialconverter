@@ -11,9 +11,22 @@ Homebrew Cask for Serial Converter — a tool that extracts serial numbers from 
 # Install Homebrew if not installed
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
+brew install --cask seishio/serialconverter/serialconverter
+```
+
+<details>
+<summary><b>Alternative: tap first, then install</b></summary>
+
+```bash
 brew tap seishio/serialconverter
 brew install --cask serialconverter
 ```
+
+> **Homebrew 6+:** third-party taps are untrusted by default, so the two-step flow above may fail with a trust error. Either use the one-line fully-qualified install above (it trusts the cask automatically), or explicitly trust it:
+> ```bash
+> brew trust --cask seishio/serialconverter/serialconverter
+> ```
+</details>
 
 ### Linux (DEB, RPM)
 **Requirements:** `curl`, `sudo`
@@ -81,9 +94,16 @@ brew untap seishio/serialconverter
 ```bash
 brew cleanup --prune=all
 brew untap seishio/serialconverter
-brew tap seishio/serialconverter
+brew install --cask seishio/serialconverter/serialconverter
+```
+
+#### Trust Error (macOS, Homebrew 6+)
+If `brew install --cask serialconverter` fails after tapping with a message about the tap or cask not being trusted:
+```bash
+brew trust --cask seishio/serialconverter/serialconverter
 brew install --cask serialconverter
 ```
+Or skip tapping entirely and use the fully-qualified one-liner from the Installation section above.
 
 #### Dependency Issues (Linux DEB)
 ```bash
@@ -95,4 +115,3 @@ sudo apt-get install -f
 curl -fsSL https://raw.githubusercontent.com/seishio/homebrew-serialconverter/main/install.sh | sudo bash
 ```
 </details>
-

@@ -1,24 +1,25 @@
 cask "serialconverter" do
-  version "0.2.17"
-  sha256 arm:   "6a4eacef6b856be9d2452b09ed11c08010210b21454cbee02637a93ce68f2170",
-         intel: "80d106f57b4b8a97bb989ea5cfbe49efa6a2b4eb1125c7b4523715b469fe76bd"
+  arch arm: "arm64", intel: "intel"
 
-  url "https://github.com/seishio/homebrew-serialconverter/releases/download/v#{version}/SerialConverter-#{version}-macos-#{Hardware::CPU.arm? ? "arm64" : "intel"}.dmg"
+  version "0.2.18"
+  sha256 arm:   "df41eda5f3c25e3e5e218f5a0fff1742f01d2bd3c58fe1b6353541453f0813c5",
+         intel: "b5299dcbd43d358c76074decace01dacb7a1af7127c301ea6d3812577223b156"
+
+  url "https://github.com/seishio/homebrew-serialconverter/releases/download/v#{version}/SerialConverter-#{version}-macos-#{arch}.dmg"
   name "SerialConverter"
-  desc "Serial Converter is a powerful tool that extracts serial numbers from PDF files and converts certificate serial numbers."
+  desc "Extracts serial numbers from PDF files and converts certificate serial numbers"
   homepage "https://github.com/seishio/SerialConverter"
-  
-  depends_on macos: ">= :catalina"
-  
-  conflicts_with cask: [
-    "serialconverter-beta",
-    "serialconverter-dev",
-  ]
 
   livecheck do
     url "https://github.com/seishio/homebrew-serialconverter/releases/latest"
     regex(%r{href=.*?/tag/v?(\d+(?:\.\d+)+)["' >]}i)
   end
+
+  conflicts_with cask: [
+    "serialconverter-beta",
+    "serialconverter-dev",
+  ]
+  depends_on macos: :catalina
 
   app "SerialConverter.app"
 
@@ -28,10 +29,10 @@ cask "serialconverter" do
   end
 
   zap trash: [
-    "~/Library/Preferences/com.serialconverter.*",
     "~/Library/Application Support/SerialConverter",
     "~/Library/Caches/dev.serialconverter",
     "~/Library/Logs/SerialConverter",
+    "~/Library/Preferences/com.serialconverter.*",
     "~/Library/Saved Application State/dev.serialconverter.savedState",
   ]
 end
