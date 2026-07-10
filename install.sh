@@ -130,27 +130,35 @@ download_file() {
     fi
 }
 
-# Verify checksum if .sha256 file is available
+# Verify checksum against the sha256 digest GitHub attaches to release assets
 verify_checksum() {
     local file="$1"
-    local url="$2"
 
-    local sha256_file="${file}.sha256"
-    log "Downloading checksum..."
-    if ! curl -sf -L -o "$sha256_file" "${url}.sha256" 2>/dev/null; then
-        warning "Checksum file not available, skipping verification"
+    if ! command -v sha256sum >/dev/null 2>&1; then
+        warning "sha256sum not available, skipping verification"
         return 0
     fi
 
-    if command -v sha256sum >/dev/null 2>&1; then
-        if sha256sum -c "$sha256_file" >/dev/null 2>&1; then
-            success "Checksum verified"
-        else
-            error "Checksum mismatch for $file"
-            exit 1
-        fi
+    # GitHub attaches a sha256 digest to every release asset — no separate .sha256 files needed
+    local api_url="https://api.github.com/repos/seishio/homebrew-serialconverter/releases/tags/v$VERSION"
+    local expected
+    expected=$(timeout 10s curl -s "$api_url" 2>/dev/null \
+        | awk -v f="$file" '$0 ~ "\"name\": \"" f "\"" {found=1} found && /"digest"/ {print; exit}' \
+        | sed -n 's/.*sha256:\([0-9a-f]\{64\}\).*/\1/p')
+
+    if [[ -z "$expected" ]]; then
+        warning "Checksum not available from GitHub API, skipping verification"
+        return 0
+    fi
+
+    local actual
+    actual=$(sha256sum "$file" | awk '{print $1}')
+
+    if [[ "$actual" == "$expected" ]]; then
+        success "Checksum verified"
     else
-        warning "sha256sum not available, skipping verification"
+        error "Checksum mismatch for $file — aborting installation"
+        exit 1
     fi
 }
 
@@ -190,7 +198,7 @@ install_deb() {
     local url="$BASE_URL/$file"
 
     download_file "$file" "$url"
-    verify_checksum "$file" "$url"
+    verify_checksum "$file"
 
     log "Installing DEB package..."
     check_sudo
@@ -211,7 +219,7 @@ install_rpm() {
     local url="$BASE_URL/$file"
 
     download_file "$file" "$url"
-    verify_checksum "$file" "$url"
+    verify_checksum "$file"
 
     log "Installing RPM package..."
     check_sudo
